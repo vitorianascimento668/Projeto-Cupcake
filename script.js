@@ -321,7 +321,7 @@ function fazerLogout() {
     }
 }
 
-// NOVO: Função para exibir os pedidos do usuário logado
+// Função para exibir os pedidos do usuário logado usando o Modal personalizado
 function abrirMeusPedidos() {
     let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
     if (!usuarioLogado) {
@@ -333,22 +333,39 @@ function abrirMeusPedidos() {
     // Filtra apenas os pedidos do e-mail do usuário atual
     let meusPedidos = todosPedidos.filter(p => p.clienteEmail === usuarioLogado.email);
 
+    let containerPedidos = document.getElementById("lista-pedidos-modal");
+    containerPedidos.innerHTML = "";
+
     if (meusPedidos.length === 0) {
-        alert("Você ainda não realizou nenhum pedido.");
-        return;
+        containerPedidos.innerHTML = "<p style='color: #666; text-align: center; padding: 20px;'>Você ainda não realizou nenhum pedido.</p>";
+    } else {
+        meusPedidos.forEach(pedido => {
+            let divPedido = document.createElement("div");
+            divPedido.style.cssText = "border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; font-size: 13px;";
+
+            let itensHtml = "";
+            pedido.itens.forEach(i => {
+                itensHtml += `<li style="margin-left: 15px; color: #555;">${i.quantidade}x ${i.nome} - R$ ${i.preco.toFixed(2).replace('.', ',')}</li>`;
+            });
+
+            divPedido.innerHTML = `
+            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #a44eaa; margin-bottom: 6px;">
+            <span>Pedido #${pedido.id}</span>
+            <span style="color: #666; font-size: 12px;">${pedido.data}</span>
+            </div>
+            <ul style="margin-bottom: 8px;">${itensHtml}</ul>
+            <div style="text-align: right; font-weight: bold; color: #333; border-top: 1px solid #eee; padding-top: 6px;">
+            Total: R$ ${pedido.total.toFixed(2).replace('.', ',')}
+            </div>
+            `;
+            containerPedidos.appendChild(divPedido);
+        });
     }
 
-    let relatorio = `📦 SEUS PEDIDOS EFETUADOS\n\n`;
-    meusPedidos.forEach(pedido => {
-        relatorio += `----------------------------------\n`;
-        relatorio += `Pedido ID: #${pedido.id}\n`;
-        relatorio += `Data: ${pedido.data}\n`;
-        relatorio += `Total: R$ ${pedido.total.toFixed(2).replace('.', ',')}\n`;
-        relatorio += `Itens:\n`;
-        pedido.itens.forEach(i => {
-            relatorio += `   • ${i.quantidade}x ${i.nome} (R$ ${i.preco.toFixed(2).replace('.', ',')})\n`;
-        });
-    });
+    // Exibe o modal personalizado
+    document.getElementById("modal-pedidos").style.display = "flex";
+}
 
-    alert(relatorio);
+function fecharMeusPedidos() {
+    document.getElementById("modal-pedidos").style.display = "none";
 }
