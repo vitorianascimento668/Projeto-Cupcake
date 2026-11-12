@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 import sqlite3
 import os
@@ -235,6 +235,21 @@ def listar_produtos():
 
 @app.route('/admin/cupcake-dados')
 def ver_dados_admin():
+    # --- SISTEMA DE PROTEÇÃO POR SENHA (HTTP BASIC AUTH) ---
+    auth = request.authorization
+    
+    # Defina aqui a credencial secreta do Administrador
+    ADMIN_USER = "base-viewer@cupcake"
+    ADMIN_PASS_HASH = "scrypt:32768:8:1$ePROqimaCnaVmwpd$f71a2f65953613a8446daca13dc946416d6d8eca66e133e60a96c9807a6d50c0e18b24539834aa470595fbde1dbfe410ccf88b3ae51c2fc3768dd970c3f780eb"
+
+    if not auth or auth.username != ADMIN_USER or not check_password_hash(ADMIN_PASS_HASH, auth.password):
+        return Response(
+            "Acesso negado. Credenciais de administrador inválidas.",
+            401,
+            {"WWW-Authenticate": 'Basic realm="Login de Administrador necessário"'}
+        )
+    # -------------------------------------------------------
+
     conn = conectar_db()
     cursor = conn.cursor()
     
