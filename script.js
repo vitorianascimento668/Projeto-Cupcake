@@ -2,6 +2,7 @@ const API_URL = "/api";
 
 // Carrega o carrinho temporário do navegador
 let carrinho = JSON.parse(localStorage.getItem("meuCarrinho")) || [];
+let metodoPagamentoSelecionado = "Cartão de Crédito";
 
 document.addEventListener("DOMContentLoaded", () => {
     atualizarContadorGlobal();
@@ -15,6 +16,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Se estivermos na página inicial, carrega os produtos do JSON via Python
     if (document.getElementById("produtos-container")) {
         carregarProdutosDoServidor();
+    }
+    // Se estivermos na página de pagamento
+    if (document.getElementById("form-pagamento")) {
+        iniciarPaginaPagamento();
     }
 });
 
@@ -194,8 +199,8 @@ async function fazerLogin(event) {
     }
 }
 
-// 3. Finalizar Compra enviando o pedido para o Python
-async function finalizarCompra() {
+// 3. No carrinho.html: Valida login/carrinho e redireciona para pagamento.html
+function finalizarCompra() {
     if (carrinho.length === 0) {
         alert("Seu carrinho está vazio!");
         return;
@@ -208,38 +213,7 @@ async function finalizarCompra() {
         return;
     }
 
-    let valorTotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
-
-    try {
-        let resposta = await fetch(`${API_URL}/pedidos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                clienteEmail: usuarioLogado.email,
-                clienteNome: usuarioLogado.nome,
-                itens: carrinho,
-                total: valorTotal
-            })
-        });
-
-        let dados = await resposta.json();
-
-        if (dados.sucesso) {
-            let p = dados.pedido;
-            alert(`🎉 Compra finalizada com sucesso!\n\nNúmero do Pedido: #${p.id}\nValor Total: R$ ${p.total.toFixed(2).replace('.', ',')}\n\nObrigado por comprar na Cupcake!`);
-
-            carrinho = [];
-            localStorage.removeItem("meuCarrinho");
-            atualizarContadorGlobal();
-
-            if (document.getElementById("lista-carrinho")) renderizarCarrinhoPagina();
-            else window.location.href = 'index.html';
-        } else {
-            alert(dados.mensagem);
-        }
-    } catch (erro) {
-        alert("Erro ao processar o pedido no servidor Python.");
-    }
+    window.location.href = "pagamento.html";
 }
 
 // 4. Buscar os pedidos salvos no arquivo dados.json do Python e exibir no Modal
@@ -262,6 +236,7 @@ async function abrirMeusPedidos() {
             if (meusPedidos.length === 0) {
                 containerPedidos.innerHTML = "<p style='color: #666; text-align: center; padding: 20px;'>Você ainda não realizou nenhum pedido.</p>";
             } else {
+                // Dentro da função abrirMeusPedidos(), altere a parte onde monta o card do pedido:
                 meusPedidos.forEach(pedido => {
                     let divPedido = document.createElement("div");
                     divPedido.style.cssText = "border: 1px solid #ddd; border-radius: 6px; padding: 12px; background: #fafafa; font-size: 13px;";
@@ -275,6 +250,9 @@ async function abrirMeusPedidos() {
                         <div style="display: flex; justify-content: space-between; font-weight: bold; color: #a44eaa; margin-bottom: 6px;">
                             <span>Pedido #${pedido.id}</span>
                             <span style="color: #666; font-size: 12px;">${pedido.data}</span>
+                        </div>
+                        <div style="margin-bottom: 8px; font-size: 12px; color: #444;">
+                            💳 Forma de Pagamento: <strong>${pedido.formaPagamento || 'Cartão de Crédito'}</strong>
                         </div>
                         <ul style="margin-bottom: 8px;">${itensHtml}</ul>
                         <div style="text-align: right; font-weight: bold; color: #333; border-top: 1px solid #eee; padding-top: 6px;">
@@ -385,4 +363,76 @@ function fazerLogout() {
     }
 }
 
+// --- FUNÇÕES DA PÁGINA DE PAGAMENTO ---
 
+function iniciarPaginaPagamento() {
+    let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
+    if (!usuarioLogado || carrinho.length === 0) {
+        window.location.href = "carrinho.html";
+        return;
+    }
+
+    let totalItens = carrinho.reduce((acc, item) => acc + item.quantidade, 0);
+    let valorTotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+
+    document.getElementById("qtd-itens-resumo").innerText = totalItens;
+    document.getElementById("total-pagamento").innerText = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+}
+
+function selecionarMetodo(metodo) {
+    metodoPagamentoSelecionado = metodo;
+
+    document.getElementById("opt-credito").classList.toggle("active", metodo === "Cartão de Crédito");
+    document.getElementById("opt-debito").classList.toggle("active", metodo === "Cartão de Débito");
+    document.getElementById("opt-pix").classList.toggle("active", metodo === "Pix");
+
+    const camposCartao = document.getElementById("campos-cartao");
+    const camposPix = document.getElementById("campos-pix");
+    const inputsCartao = camposCartao.querySelectorAll("input");
+
+    if (metodo === "Pix") {
+        camposCartao.style.display = "none";
+        camposPix.style.display = "flex";
+        inputsCartao.forEach(input => input.required = false);
+    } else {
+        camposCartao.style.display = "flex";
+        camposPix.style.display = "none";
+        inputsCartao.forEach(input => input.required = true);
+    }
+}
+
+async function confirmarPagamento(event) {
+    event.preventDefault();
+
+    let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
+    let valorTotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+
+    try {
+        let resposta = await fetch(`${API_URL}/pedidos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clienteEmail: usuarioLogado.email,
+                clienteNome: usuarioLogado.nome,
+                itens: carrinho,
+                total: valorTotal,
+                formaPagamento: metodoPagamentoSelecionado
+            })
+        });
+
+        let dados = await resposta.json();
+
+        if (dados.sucesso) {
+            let p = dados.pedido;
+            alert(`🎉 Pagamento via ${metodoPagamentoSelecionado} aprovado!\n\nNúmero do Pedido: #${p.id}\nValor Total: R$ ${p.total.toFixed(2).replace('.', ',')}\n\nObrigado por comprar na Cupcake!`);
+
+            carrinho = [];
+            localStorage.removeItem("meuCarrinho");
+            window.location.href = "index.html";
+        } else {
+            alert(dados.mensagem);
+        }
+    } catch (erro) {
+        alert("Erro ao processar o pagamento no servidor.");
+    }
+}

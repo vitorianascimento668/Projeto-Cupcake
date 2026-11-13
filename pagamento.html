@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cupcake - Pagamento</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #f4f4f4; }
+        .navbar { background-color: #2b2b2b; color: white; display: flex; justify-content: space-between; align-items: center; padding: 12px 30px; font-size: 14px; }
+        .nav-left, .nav-right { display: flex; align-items: center; gap: 20px; }
+        .nav-brand { font-weight: bold; font-size: 16px; }
+        .nav-link { color: #ddd; text-decoration: none; display: flex; align-items: center; gap: 5px; }
+        .nav-link:hover { color: white; }
+        .main-container { display: flex; justify-content: center; padding: 30px; }
+        .container { width: 100%; max-width: 650px; background-color: white; border: 1px solid #dcdcdc; border-radius: 4px; overflow: hidden; }
+        .content-header { background-color: #a44eaa; color: white; padding: 15px; font-weight: bold; font-size: 16px; }
+        .payment-body { padding: 25px; display: flex; flex-direction: column; gap: 20px; }
+        .summary-box { background: #fafafa; border: 1px solid #eee; padding: 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .methods-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .method-card { border: 2px solid #ddd; border-radius: 6px; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #555; transition: 0.2s; }
+        .method-card.active { border-color: #a44eaa; background-color: #f9effa; color: #a44eaa; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; font-weight: bold; color: #333; }
+        .form-group input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .pix-box { text-align: center; background: #fafafa; border: 1px dashed #a44eaa; padding: 20px; border-radius: 6px; display: none; flex-direction: column; align-items: center; gap: 12px; }
+        .btn-action { background-color: #5d31b0; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 15px; font-weight: bold; }
+        .btn-action:hover { background-color: #4c19aa; }
+        .btn-secondary { background-color: #ccc; color: #333; text-decoration: none; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="nav-left">
+            <span class="nav-brand">Cupcake</span>
+            <a href="index.html" class="nav-link">&#8962; Início</a>
+        </div>
+        <div class="nav-right">
+            <a href="carrinho.html" class="nav-link">&#128722; Voltar ao Carrinho <span id="cart-count" style="background: #555; padding: 2px 6px; border-radius: 10px; font-size: 12px;">0</span></a>
+            <span class="nav-link" id="link-usuario">&#128100; Usuário</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="container">
+            <div class="content-header">Escolha a Forma de Pagamento</div>
+            <div class="payment-body">
+                
+                <div class="summary-box">
+                    <span>Total do Pedido (<span id="qtd-itens-resumo">0</span> itens):</span>
+                    <strong id="total-pagamento" style="font-size: 20px; color: #a44eaa;">R$ 0,00</strong>
+                </div>
+
+                <!-- Seleção do Método -->
+                <div class="methods-grid">
+                    <div class="method-card active" id="opt-credito" onclick="selecionarMetodo('Cartão de Crédito')">💳 Crédito</div>
+                    <div class="method-card" id="opt-debito" onclick="selecionarMetodo('Cartão de Débito')">💳 Débito</div>
+                    <div class="method-card" id="opt-pix" onclick="selecionarMetodo('Pix')">💠 Pix</div>
+                </div>
+
+                <!-- Formulário de Cartão (Crédito / Débito) -->
+                <form id="form-pagamento" onsubmit="confirmarPagamento(event)" style="display: flex; flex-direction: column; gap: 15px;">
+                    <div id="campos-cartao" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group">
+                            <label>Número do Cartão</label>
+                            <input type="text" id="card-numero" placeholder="0000 0000 0000 0000" maxlength="19" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome Impresso no Cartão</label>
+                            <input type="text" id="card-nome" placeholder="NOME COMO NO CARTÃO" required>
+                        </div>
+                        <div class="row-2">
+                            <div class="form-group">
+                                <label>Validade (MM/AA)</label>
+                                <input type="text" id="card-validade" placeholder="12/30" maxlength="5" required>
+                            </div>
+                            <div class="form-group">
+                                <label>CVV</label>
+                                <input type="text" id="card-cvv" placeholder="123" maxlength="4" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Área do Pix -->
+                    <div id="campos-pix" class="pix-box">
+                        <strong style="color: #a44eaa;">Pagamento Instantâneo via Pix</strong>
+                        <p style="font-size: 13px; color: #555;">Escaneie o QR Code abaixo com o aplicativo do seu banco para pagar:</p>
+                        
+                        <!-- Imagem ilustrativa do QR Code -->
+                        <img src="frontend/qrcode-pix.png" alt="QR Code Pix" style="width: 150px; height: 150px; object-fit: contain; margin: 0 auto; background: white; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+
+                        <code style="background: #eee; padding: 8px; border-radius: 4px; font-size: 13px; user-select: all;">00020126360014BR.GOV.BCB.PIX0114cupcake@loja.br</code>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; gap: 10px; margin-top: 10px;">
+                        <a href="carrinho.html" class="btn-action btn-secondary">Voltar</a>
+                        <button type="submit" class="btn-action" style="flex: 1;">Confirmar Pagamento e Finalizar</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

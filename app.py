@@ -53,7 +53,8 @@ def inicializar_banco():
             cliente_email TEXT NOT NULL,
             cliente_nome TEXT NOT NULL,
             total REAL NOT NULL,
-            itens TEXT NOT NULL
+            itens TEXT NOT NULL,
+            forma_pagamento TEXT DEFAULT 'Cartão de Crédito'
         )
     ''')
 
@@ -90,6 +91,10 @@ def pagina_index():
 @app.route('/carrinho.html')
 def pagina_carrinho():
     return send_from_directory('.', 'carrinho.html')
+
+@app.route('/pagamento.html')
+def pagina_pagamento():
+    return send_from_directory('.', 'pagamento.html')
 
 @app.route('/script.js')
 def serve_script():
@@ -170,20 +175,21 @@ def criar_pedido():
     nome = data.get('clienteNome')
     itens = data.get('itens')
     total = data.get('total')
+    forma_pagamento = data.get('formaPagamento', 'Cartão de Crédito') # Recebe do front
 
     if not itens or len(itens) == 0:
         return jsonify({"sucesso": False, "mensagem": "Carrinho vazio!"}), 400
 
     numero_pedido = random.randint(10000, 99999)
     data_atual = datetime.now().strftime('%d/%m/%Y às %H:%M')
-    itens_json = json.dumps(itens) # Converte a lista de itens para texto JSON
+    itens_json = json.dumps(itens)
 
     conn = conectar_db()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO pedidos (id, data, cliente_email, cliente_nome, total, itens)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (numero_pedido, data_atual, email, nome, total, itens_json))
+        INSERT INTO pedidos (id, data, cliente_email, cliente_nome, total, itens, forma_pagamento)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (numero_pedido, data_atual, email, nome, total, itens_json, forma_pagamento))
     conn.commit()
     conn.close()
 
@@ -193,7 +199,8 @@ def criar_pedido():
         "clienteEmail": email,
         "clienteNome": nome,
         "itens": itens,
-        "total": total
+        "total": total,
+        "formaPagamento": forma_pagamento
     }
 
     return jsonify({
@@ -218,7 +225,8 @@ def listar_pedidos(email):
             "clienteEmail": reg['cliente_email'],
             "clienteNome": reg['cliente_nome'],
             "total": reg['total'],
-            "itens": json.loads(reg['itens']) # Converte o texto JSON de volta para lista
+            "itens": json.loads(reg['itens']),
+            "formaPagamento": reg['forma_pagamento'] if 'forma_pagamento' in reg.keys() else 'Cartão de Crédito'
         })
 
     return jsonify({"sucesso": True, "pedidos": pedidos_usuario})
@@ -293,13 +301,14 @@ def ver_dados_admin():
     
     html += """
         </table>
-
+        
         <h2>Pedidos</h2>
         <table>
-            <tr><th>ID Pedido</th><th>Data</th><th>E-mail Cliente</th><th>Nome Cliente</th><th>Total</th><th>Itens</th></tr>
+            <tr><th>ID Pedido</th><th>Data</th><th>E-mail Cliente</th><th>Nome Cliente</th><th>Pagamento</th><th>Total</th><th>Itens</th></tr>
             """
     for p in pedidos:
-        html += f"<tr><td>#{p['id']}</td><td>{p['data']}</td><td>{p['cliente_email']}</td><td>{p['cliente_nome']}</td><td>R$ {p['total']:.2f}</td><td><small>{p['itens']}</small></td></tr>"
+        pag = p['forma_pagamento'] if 'forma_pagamento' in p.keys() else 'Cartão'
+        html += f"<tr><td>#{p['id']}</td><td>{p['data']}</td><td>{p['cliente_email']}</td><td>{p['cliente_nome']}</td><td>{pag}</td><td>R$ {p['total']:.2f}</td><td><small>{p['itens']}</small></td></tr>"
 
     html += """
         </table>
